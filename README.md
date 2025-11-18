@@ -678,6 +678,7 @@ fig, axes = plt.subplots(1, 2, figsize=(20, 10))
 - Validating both methods
 
 ********ADD EXAMPLE IMAGE HERE**********
+
 *Figure 6: Side-by-side comparison of Infomap and Girvan-Newman community detection*
 
 ---
@@ -958,7 +959,7 @@ This format is required by the MBRW C++ executable.
 ### Step 4: Infomap Community Detection (MATLAB)
 
 ```matlab
-markov_times = [50, 70];
+markov_times = [50, 70]; % add more/less if neccessary...
 infomap_command = sprintf('"%s" "%s" infomap_output --undirdir --two-level --markov-time %d --num-trials 10', ...
     infomap_exe, infomap_input_file, mt);
 ```
@@ -1047,7 +1048,9 @@ After 2-core extraction and LCC selection, node indices change. Need to carefull
 - Text listing all communities
 - Sizes and modularity metrics
 
-********ADD EXAMPLE IMAGE HERE**********
+
+![Multi-panel figure](MBRW/PlotImages/figure1_mbrw.png)
+
 *Figure 7: MATLAB multi-panel community detection analysis*
 
 ---
@@ -1086,7 +1089,9 @@ G_geo = subgraph(G, nodes_with_coords);
 
 This ensures clean visualization without missing data artifacts.
 
-********ADD EXAMPLE IMAGE HERE**********
+
+![Geographic community map](MBRW/PlotImages/figure2_mbrw.png)
+
 *Figure 8: High-quality geographic community visualization*
 
 ---
@@ -1235,6 +1240,8 @@ plot(log2_segment_lengths, log2_generalized_means(:, o), ...
 Creates multi-line plot with one curve per q-value.
 
 ********ADD EXAMPLE IMAGE HERE**********
+
+
 *Figure 9: Segment mass scaling curves for all q-values*
 
 **Interpretation:**
@@ -1322,7 +1329,9 @@ line_colors = jet(num_orders);
 3. **Curvature at large L:** Finite-size effects (network has finite size)
 4. **Spacing between curves:** Larger spacing → stronger multifractality
 
-********ADD EXAMPLE IMAGE HERE**********
+
+![MBRW segment mass log-log plot](MBRW/PlotImages/figure4_mbrw.png)
+
 *Figure 10: MBRW segment mass log-log plot*
 
 ---
@@ -1365,7 +1374,9 @@ q>0:  D=1.5
 ```
 May indicate distinct structural regimes or phase transitions.
 
-********ADD EXAMPLE IMAGE HERE**********
+
+![Spectral dimension spectrum - Dq vs q](MBRW/PlotImages/figure5_mbrw.png)
+
 *Figure 11: Spectral dimension spectrum (Dq vs q)*
 
 **Interpretation for Venice:**
