@@ -1,5 +1,5 @@
 # Venice Network Analysis
-![venice graph](code/venice_map.jpeg)
+![venice graph](venice_map.jpeg)
 ## Overview
 
 This repository contains three complementary approaches for analyzing the Venice street network, each revealing different aspects of the city's unique urban structure:
@@ -142,7 +142,7 @@ graph = ox.graph_from_place(place_name, network_type="all")
 - Directed graph object in memory
 - Saved as `venice.graphml` for reuse and portability
 
-![venice infomap communities](code/OutputImages/venice_graph.png)
+![venice infomap communities](OutputImages/venice_graph.png)
 
 *Figure 1: Raw Venice street network downloaded from OpenStreetMap*
 
@@ -295,7 +295,7 @@ infomap_modularity = nx.algorithms.community.modularity(G, infomap_comm_list)
 - Title: Shows number of communities and modularity score
 
 
-![venice infomap communities](code/OutputImages/venice_infomap_communities.png)
+![venice infomap communities](OutputImages/venice_infomap_communities.png)
 
 *Figure 2: Complete community structure of Venice street network with Infomap detection*
 
@@ -332,7 +332,7 @@ Four complementary views in a single figure:
 - Reveals compact vs. dispersed communities
 
 
-![venice infomap communities](code/OutputImages/Infomap%20Community%20Detection-Detailed%20Analysis.png)
+![venice infomap communities](OutputImages/Infomap%20Community%20Detection-Detailed%20Analysis.png)
 
 *Figure 3: Four-panel detailed analysis of community structure*
 
@@ -362,7 +362,7 @@ Four complementary views in a single figure:
 - Geographic context: Community position relative to whole network
 
 
-![venice individual community](code/OutputImages/Individual%20Community%20Visualizations.png)
+![venice individual community](OutputImages/Individual%20Community%20Visualizations.png)
 *Figure 4: Individual visualizations of the six largest communities*
 
 **Interpretation:**
@@ -394,7 +394,7 @@ Two complementary views:
 - Cooler colors (yellow) = sparser areas
 
 
-![venice infomap communities](code/OutputImages/Community%20Density%20Analysis.png)
+![venice infomap communities](OutputImages/Community%20Density%20Analysis.png)
 
 *Figure 5: Community membership and geographic density comparison*
 

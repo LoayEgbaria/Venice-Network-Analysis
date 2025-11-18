@@ -33,19 +33,19 @@ graph = ox.graph_from_place(place_name, network_type="all")
 #graph = ox.graph_from_place(place_name, network_type="walk", simplify=True)
 
 # Make sure the output directory exists
-output_dir = "code/VeniceNetworkFiles"
+output_dir = "VeniceNetworkFiles"
 os.makedirs(output_dir, exist_ok=True)
 
 # Save the graph as a GraphML file
-ox.save_graphml(graph, filepath="code/VeniceNetworkFiles/venice.graphml",gephi=True)
+ox.save_graphml(graph, filepath="VeniceNetworkFiles/venice.graphml",gephi=True)
 print("Data downloaded successfully!")
 
 # Make sure the output directory exists
-output_dir = "code/OutputImages"
+output_dir = "OutputImages"
 os.makedirs(output_dir, exist_ok=True)
 
 # Plot and Save the graph image
-ox.plot_graph(graph,filepath="code/OutputImages/venice_graph.png",save=True,dpi=300)
+ox.plot_graph(graph,filepath="OutputImages/venice_graph.png",save=True,dpi=300)
 
 # Convert to undirected for community detection
 G = graph.to_undirected()
@@ -176,7 +176,7 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
 plt.axis('equal')
 plt.tight_layout()
 
-save_path = os.path.join("code/OutputImages", "venice_infomap_communities.png")
+save_path = os.path.join("OutputImages", "venice_infomap_communities.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 
 #plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -260,7 +260,7 @@ ax4.set_title('Community Size vs Geographic Spread')
 ax4.grid(True, alpha=0.3)
 
 plt.tight_layout()
-save_path = os.path.join("code/OutputImages", "Infomap Community Detection-Detailed Analysis.png")
+save_path = os.path.join("OutputImages", "Infomap Community Detection-Detailed Analysis.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
@@ -311,7 +311,7 @@ for i in range(n_to_plot, 6):
     axes[i].axis('off')
 
 plt.tight_layout()
-save_path = os.path.join("code/OutputImages", "Individual Community Visualizations.png")
+save_path = os.path.join("OutputImages", "Individual Community Visualizations.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
@@ -359,7 +359,7 @@ ax2.axis('equal')
 plt.colorbar(scatter2, ax=ax2, label='Local Density')
 
 plt.tight_layout()
-save_path = os.path.join("code/OutputImages", "Community Density Analysis.png")
+save_path = os.path.join("OutputImages", "Community Density Analysis.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
@@ -403,7 +403,7 @@ results_df = pd.DataFrame({
     'infomap_community': [node_to_comm.get(node, -1) for node in G.nodes()]
 })
 
-results_df.to_csv("code/VeniceNetworkFiles/venice_infomap_communities.csv", index=False)
+results_df.to_csv("VeniceNetworkFiles/venice_infomap_communities.csv", index=False)
 print("Community assignments saved to: VeniceNetworkFiles: venice_infomap_communities.csv")
 
 # Save community statistics
@@ -428,7 +428,7 @@ for i, comm in enumerate(infomap_comm_list):
 
 stats_df = pd.DataFrame(comm_stats)
 #this line to save the community statistics file 
-stats_df.to_csv("code/VeniceNetworkFiles/venice_infomap_community_stats.csv", index=False)
+stats_df.to_csv("VeniceNetworkFiles/venice_infomap_community_stats.csv", index=False)
 print("Community statistics saved to: VeniceNetworkFiles: venice_infomap_community_stats.csv")
 
 print("\nAll visualizations and analysis complete!")
