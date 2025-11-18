@@ -1,5 +1,5 @@
 # Venice Network Analysis
-![venice graph](code/OutputImages/venice_graph.png)
+![venice graph](code/venice_map.jpeg)
 ## Overview
 
 This repository contains three complementary approaches for analyzing the Venice street network, each revealing different aspects of the city's unique urban structure:
