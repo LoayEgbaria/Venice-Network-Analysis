@@ -2095,9 +2095,9 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @software{venice_network_analysis,
-  author = {[Your Name]},
+  author = {[Your-Name]},
   title = {Venice Street Network Analysis Suite: Community Detection and Spectral Dimension Analysis},
-  year = {2024},
+  year = {CURRENT-YEAR},
   url = {[Your Repository URL]}
 }
 ```
