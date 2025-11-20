@@ -328,7 +328,7 @@ for node in G.nodes():
     x, y = pos[node]
     comm = node_to_comm.get(node, -1)
     coords_list.append([x, y])
-    colors_list.append(comm)
+    colors_list.append(comm+1)
 
 coords_array = np.array(coords_list)
 
