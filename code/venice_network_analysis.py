@@ -1,13 +1,4 @@
-#import osmnx as ox
-# Define the place name or address
-#place_name = "Venice, Italy"
-# Download the street network data for Venice
-#graph = ox.graph_from_place(place_name, network_type="all")
-# Save the graph as a shapefile
-#ox.save_graph_shapefile(graph, filename="venice_network")
-#print("Data downloaded successfully!")
-
-
+# Venice Street Network Analysis - Community Detection and Visualization
 import pandas as pd
 import osmnx as ox
 import networkx as nx
@@ -19,7 +10,6 @@ import matplotlib.patches as mpatches
 import os
 
 # Define the place name or address
-#place_name = "Venice, Italy"
 place_name = "Venezia-Murano-Burano, Veneto, Italy"
 
 # Download the street network data for Venice
@@ -431,7 +421,10 @@ print("\nAll visualizations and analysis complete!")
 
 
 
-#============================================================================================#
+
+
+
+#====================================== Girvan-Newman Algorithm START ======================================#
 
 '''
 # ========== METHOD 2: Girvan-Newman Algorithm ==========
@@ -612,7 +605,7 @@ print(f"Total nodes analyzed: {len(results_df)}")
 print("\nAnalysis complete!")
 '''
 
-#============================================================================================#
+#======================================== Girvan-Newman Algorithm END =========================================#
 
 
 
@@ -633,6 +626,20 @@ print("\nAnalysis complete!")
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#====================================== KNN AND SVM ALGORITHMS FOR DENSITY BASED EDGE FILTERING START ======================================#
 # REST OF THE CODE FOR: KNN AND SVM ALGORITHMS FOR DENSITY BASED EDGE FILTERING
 # Dont run them unless you understand what each part does........ask Loay Egbaria for any clarifications or questions
 
