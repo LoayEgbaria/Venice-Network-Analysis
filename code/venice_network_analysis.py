@@ -634,6 +634,7 @@ print("\nAnalysis complete!")
 
 
 # REST OF THE CODE FOR: KNN AND SVM ALGORITHMS FOR DENSITY BASED EDGE FILTERING
+# Dont run them unless you understand what each part does........ask Loay Egbaria for any clarifications or questions
 
 '''
 
@@ -745,12 +746,6 @@ fig, ax = ox.plot_graph(
 )
 ax.set_title("Venice Network (Edges in High-Density Areas Only)", color="white")
 plt.show()
-
-
-
-
-
-
 
 
 
