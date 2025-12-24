@@ -142,9 +142,6 @@ graph = ox.graph_from_place(place_name, network_type="all")
 - Directed graph object in memory
 - Saved as `venice.graphml` for reuse and portability
 
-![venice infomap communities](OutputImages/venice_graph.png)
-
-*Figure 1: Raw Venice street network downloaded from OpenStreetMap*
 
 ---
 
@@ -279,7 +276,23 @@ infomap_modularity = nx.algorithms.community.modularity(G, infomap_comm_list)
 
 ## Visualizations
 
-### Visualization 1: Basic Community Map
+### Visualization 1: Venice street network
+
+### *Figure 1: Raw Venice street network downloaded from OpenStreetMap*
+
+![venice infomap communities](OutputImages/venice_graph.png)
+
+This figure shows the raw street network of Venice, as obtained from OpenStreetMap.  
+- **Nodes** represent street intersections.  
+- **Edges** represent navigable paths connecting these intersections.  
+- The network captures the overall connectivity and layout of Venice’s streets, including canals and pedestrian routes.  
+- This visualization provides the foundation for community detection analysis, as it allows us to identify clusters of intersections that form structurally coherent regions.  
+
+
+---
+
+
+### Visualization 2: Basic Community Map
 
 ```python
 # All communities shown with different colors
@@ -295,18 +308,31 @@ infomap_modularity = nx.algorithms.community.modularity(G, infomap_comm_list)
 - Title: Shows number of communities and modularity score
 
 
+### *Figure 2: Complete community structure of Venice street network with Infomap detection*
+
+
 ![venice infomap communities](OutputImages/venice_infomap_communities.png)
 
-*Figure 2: Complete community structure of Venice street network with Infomap detection*
 
-**Interpretation:** 
-- Look for spatial coherence (communities as contiguous regions)
-- Identify natural barriers (canals, large streets) separating communities
-- Compare with known Venice neighborhoods (sestieri)
+
+- Each color represents a distinct community detected by the Infomap algorithm.  
+- Nodes located in spatial proximity are frequently assigned to the same community.  
+- Communities reflect structural groupings within Venice's street network.  
+- Larger communities correspond to areas with higher internal connectivity.
+
+#### Additional Details
+
+- Each point represents a street intersection (graph node).  
+- Lines represent navigable paths connecting these intersections.  
+- Identified communities correspond to meaningful structural or functional zones.  
+- Modularity = 0.814 , indicating the clarity of community separation.  
+- The inset map on the right indicates the spatial position of the displayed region within the broader Venice network.
+
+
 
 ---
 
-### Visualization 2: Multi-Panel Detailed Analysis
+### Visualization 3: Multi-Panel Detailed Analysis
 
 Four complementary views in a single figure:
 
@@ -320,7 +346,7 @@ Four complementary views in a single figure:
 - Reveals whether structure is balanced or hierarchical
 - Helps identify dominant communities
 
-#### Panel C: Top 5 Largest Communities Highlighted
+#### Panel C: Top 6 Largest Communities Highlighted
 - Background nodes in light gray for context
 - Five largest communities in distinct bright colors
 - Focus on major structural divisions
@@ -332,21 +358,45 @@ Four complementary views in a single figure:
 - Reveals compact vs. dispersed communities
 
 
+### *Figure 3: Four-panel detailed analysis of community structure*
+
 ![venice infomap communities](OutputImages/Infomap%20Community%20Detection-Detailed%20Analysis.png)
 
-*Figure 3: Four-panel detailed analysis of community structure*
 
-**Interpretation:**
-- **Panel A:** Overall structure and spatial patterns
-- **Panel B:** Distribution shows hierarchy or balance
-- **Panel C:** Major divisions of the city
-- **Panel D:** Relationship between size and geography
-  - Linear relationship → communities grow spatially
-  - Outliers → unusually compact or dispersed regions
+
+#### Panel A – Overall Community Structure :
+Shows all detected Infomap communities projected on the physical map of Venice.  
+Each community is consistently color-coded throughout the figure, spatial clusters represent regions of the street network that are internally well connected.
+
+#### Panel B – Distribution of Nodes per Community :
+Displays the number of nodes (street intersections) in each community.  
+The distribution indicates whether Venice has a hierarchical community structure or a more balanced organization of regions.
+
+#### Panel C – Spatial Layout of the Six Largest Communities :
+Communities 1–6 are shown in physical space, with each point representing a street intersection.  
+
+Community sizes:  
+- C1: 1530 nodes  
+- C2: 1013 nodes  
+- C3: 927 nodes  
+- C4: 870 nodes  
+- C5: 785 nodes  
+- C6: 785 nodes  
+
+These communities occupy distinct geographic regions within the city.
+
+#### Panel D – Relationship Between Geographic Size and Number of Intersections :
+Geographic spread is measured in degrees. 
+
+Each point represents one community, plotted by its physical size and number of nodes.  
+
+The strong positive correlation (R = 0.842, P = 3.544e-02) indicates that communities with larger geographic extent tend to contain more intersections.  
+Community 2 contains more intersections than expected given its geographic size, making it an outlier.
+
 
 ---
 
-### Visualization 3: Individual Community Analysis
+### Visualization 4: Individual Community Analysis
 
 ```python
 # Top 6 largest communities shown individually
@@ -361,9 +411,10 @@ Four complementary views in a single figure:
 - Statistics: Size, number of internal edges
 - Geographic context: Community position relative to whole network
 
+### *Figure 4: Individual visualizations of the six largest communities*
 
 ![venice individual community](OutputImages/Individual%20Community%20Visualizations.png)
-*Figure 4: Individual visualizations of the six largest communities*
+
 
 **Interpretation:**
 - **Shape:** Linear (canal-following) vs. compact (island-centered)
@@ -378,7 +429,7 @@ Four complementary views in a single figure:
 
 ---
 
-### Visualization 4: Density Heatmap Analysis
+### Visualization 5: Density Heatmap Analysis
 
 Two complementary views:
 
@@ -393,10 +444,11 @@ Two complementary views:
 - Warmer colors (red/orange) = denser street networks
 - Cooler colors (yellow) = sparser areas
 
+### *Figure 5: Community membership and geographic density comparison*
 
 ![venice infomap communities](OutputImages/Community%20Density%20Analysis.png)
 
-*Figure 5: Community membership and geographic density comparison*
+
 
 **Interpretation:**
 - Compare community boundaries with density patterns

@@ -29,7 +29,20 @@ output_dir = "OutputImages"
 os.makedirs(output_dir, exist_ok=True)
 
 # Plot and Save the graph image
-ox.plot_graph(graph,filepath="OutputImages/venice_graph.png",save=True,dpi=300)
+#ox.plot_graph(graph,filepath="OutputImages/venice_graph.png",save=True,dpi=300)
+
+# Plot and Save the graph image with title
+fig, ax = ox.plot_graph(graph, show=False, close=False)
+ax.set_title('Venice Street Network - Complete Graph\nAll streets and intersections', 
+             fontsize=14, fontweight='bold', pad=20)
+plt.tight_layout()
+plt.savefig("OutputImages/venice_graph.png", dpi=300, bbox_inches='tight')
+plt.show()  # Display the plot
+
+
+
+
+
 
 # Convert to undirected for community detection
 G = graph.to_undirected()
@@ -57,11 +70,10 @@ try:
     
     #im = infomap.Infomap("--two-level --markov-time 50.0 --num-trials 10")
     
-    im = infomap.Infomap("--two-level --markov-time 47.0 --seed 42")
+    im = infomap.Infomap("--two-level --markov-time 48.0 --seed 42")
     
     #im = infomap.Infomap("--two-level --markov-time 45.0")
     
- 
     
     
     
@@ -111,15 +123,40 @@ try:
     
     infomap_available = True
     
+
+    # Sort communities by size to assign colors consistently
+    sorted_communities_by_size = sorted(enumerate(infomap_comm_list), 
+                                       key=lambda x: len(x[1]), reverse=True)
+    
+    # Create fixed color mapping (largest community = color 0, etc.)
+    n_communities = len(infomap_comm_list)
+    
+    # Generate enough distinct colors for all communities
+    if n_communities <= 20:
+        base_colors = plt.cm.tab20(np.linspace(0, 1, n_communities))
+    else:
+        # Use multiple colormaps to get more distinct colors
+        cmap1 = plt.cm.tab20(np.linspace(0, 1, 20))
+        cmap2 = plt.cm.tab20b(np.linspace(0, 1, 20))
+        cmap3 = plt.cm.tab20c(np.linspace(0, 1, 20))
+        base_colors = np.vstack([cmap1, cmap2, cmap3])[:n_communities]
+    
+    # Map each community to a fixed color based on size rank
+    community_color_map = {}
+    for rank, (comm_idx, _) in enumerate(sorted_communities_by_size):
+        community_color_map[comm_idx] = base_colors[rank] 
+    
+    print("\nFixed color mapping created for consistent visualization")
+    
 except ImportError:
     print("Warning: 'infomap' package not installed.")
     print("Install with: pip install infomap")
     infomap_available = False
     exit()
 
-# ========== ENHANCED INFOMAP VISUALIZATIONS ==========
+# ========== INFOMAP VISUALIZATIONS ==========
 print("\n" + "="*60)
-print("Creating Enhanced Infomap Visualizations...")
+print("Creating Infomap Visualizations...")
 print("="*60)
 
 # Get node positions from graph
@@ -132,163 +169,382 @@ for i, comm in enumerate(infomap_comm_list):
         node_to_comm[node] = i
 
 # ========== VISUALIZATION 1: Basic Infomap Communities ==========
-print("Creating basic community visualization...")
+print("Creating community visualization...")
 
-plt.figure(figsize=(14, 10))
+# Convert graph to GeoDataFrames for better plotting
+gdf_nodes, gdf_edges = ox.graph_to_gdfs(G)
 
-# Prepare colors for communities
-n_communities = len(infomap_comm_list)
-colors = plt.cm.tab20(np.linspace(0, 1, n_communities))
+#lat/lon coordinates
+pos = {node: (data['x'], data['y']) for node, data in G.nodes(data=True)}
 
-# Draw each community with different color
-for i, comm in enumerate(infomap_comm_list):
+# Helper function to add scale bar (approximate for lat/lon)
+def add_scale_bar(ax, length_deg=0.01, location=(0.02, 0.02)):
+    """Add a simple scale bar to the map (approximate for lat/lon)"""
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    
+    # Position scale bar
+    x0 = xlim[0] + (xlim[1] - xlim[0]) * location[0]
+    y0 = ylim[0] + (ylim[1] - ylim[0]) * location[1]
+    
+    # Draw scale bar
+    ax.plot([x0, x0 + length_deg], [y0, y0], 'k-', linewidth=3)
+    ax.plot([x0, x0], [y0, y0 + length_deg*0.1], 'k-', linewidth=2)
+    ax.plot([x0 + length_deg, x0 + length_deg], [y0, y0 + length_deg*0.1], 'k-', linewidth=2)
+    
+    # Add text (approximate: 0.01 degrees ≈ 1 km at Venice latitude)
+    distance_m = int(length_deg * 111000 * np.cos(np.radians(45.4)))  # Venice is at ~45.4°N
+    ax.text(x0 + length_deg/2, y0 - (ylim[1] - ylim[0])*0.015, 
+            f'~{distance_m} m', ha='center', va='top', fontsize=9,
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+fig, ax = plt.subplots(figsize=(14, 12))
+
+# Draw edges (light gray)
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):  # MultiLineString
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            ax.plot(xs, ys, linewidth=0.4, alpha=0.6, color="lightgray")
+    else:
+        xs, ys = edge.geometry.xy
+        ax.plot(xs, ys, linewidth=0.4, alpha=0.6, color="lightgray")
+
+# Draw nodes per community using consistent colors
+for comm_idx, comm in enumerate(infomap_comm_list):
     comm_nodes = list(comm)
-    nx.draw_networkx_nodes(G, pos, nodelist=comm_nodes, 
-                          node_color=[colors[i]], 
-                          node_size=30, alpha=0.8, 
-                          label=f'Community {i+1} ({len(comm)} nodes)')
+    # Filter nodes that exist in position dict
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    if len(xs) == 0:
+        continue
+    color = community_color_map.get(comm_idx, (0.5, 0.5, 0.5, 1.0))
+    ax.scatter(xs, ys, s=18, color=[color], alpha=0.85, 
+               label=f'Community {comm_idx+1} ({len(comm)} nodes)')
 
-# Draw edges
-nx.draw_networkx_edges(G, pos, alpha=0.15, width=0.5, edge_color='gray')
+# Decorations
+ax.set_title(f'Infomap Communities - Venice Network\n'
+             f'{n_communities} communities, Modularity: {infomap_modularity:.3f}',
+             fontsize=14, fontweight='bold')
+ax.set_xlabel('Longitude')
+ax.set_ylabel('Latitude')
+ax.set_aspect('equal')
 
-plt.title(f'Infomap Communities - Venice Network\n'
-         f'{n_communities} communities, Modularity: {infomap_modularity:.3f}',
-         fontsize=14, fontweight='bold')
-plt.xlabel('Longitude')
-plt.ylabel('Latitude')
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-plt.axis('equal')
-plt.tight_layout()
+# Add explanatory text box
+explanation = (
+    f"• Each color represents a community\n"
+    f"• Modularity score: {infomap_modularity:.3f} (higher = better separation)"
+)
+ax.text(0.02, 0.98, explanation, transform=ax.transAxes,
+        fontsize=7, verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor="none", alpha=0.8))
 
+# Legend (trim to reasonable length - show only top 10 by size)
+handles, labels = ax.get_legend_handles_labels()
+if len(handles) > 10:
+    # Create custom legend from sorted_communities_by_size top 10
+    legend_patches = []
+    for rank, (comm_idx, comm) in enumerate(sorted_communities_by_size[:10]):
+        c = community_color_map[comm_idx]
+        patch = mpatches.Patch(color=c, label=f'#{rank+1}: {len(comm)} nodes')
+        legend_patches.append(patch)
+    ax.legend(handles=legend_patches, bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
+else:
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
+
+# Add scale bar (0.01 degrees ≈ 1 km at Venice latitude)
+add_scale_bar(ax, length_deg=0.0064, location=(0.02, 0.02))
+
+
+
+
+# Inset map - full Venice extent with rectangle showing main view
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+axins = inset_axes(ax, width="25%", height="25%", loc='upper right', borderpad=1)
+
+# Plot edges in inset
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            axins.plot(xs, ys, linewidth=0.25, alpha=0.5, color="gray")
+    else:
+        xs, ys = edge.geometry.xy
+        axins.plot(xs, ys, linewidth=0.25, alpha=0.5, color="gray")
+
+# Draw rectangle of main map extent on inset
+xmin, xmax = ax.get_xlim()
+ymin, ymax = ax.get_ylim()
+rect = plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                     facecolor="none", edgecolor="red", linewidth=1.25, alpha=0.9)
+axins.add_patch(rect)
+axins.set_xticks([])
+axins.set_yticks([])
+axins.set_title("Overview", fontsize=9)
+axins.set_aspect('equal')
+
+# Save and show
 save_path = os.path.join("OutputImages", "venice_infomap_communities.png")
+plt.tight_layout()
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
-
-#plt.savefig(save_path, dpi=300, bbox_inches="tight")
-#plt.savefig("venice_infomap_communities.png", dpi=300)  # save PNG with high resolution
-
+print(f"Saved: {save_path}")
 plt.show()
+
+
+
+
 
 # ========== VISUALIZATION 2: Detailed Multi-Panel View ==========
 print("Creating detailed multi-panel visualization...")
+import matplotlib.gridspec as gridspec
 
-fig, axes = plt.subplots(2, 2, figsize=(18, 14))
-fig.suptitle('Infomap Community Detection - Detailed Analysis', fontsize=16, fontweight='bold')
+fig = plt.figure(figsize=(22, 14))
+gs = gridspec.GridSpec(4, 2, width_ratios=[1, 1], height_ratios=[1, 0.5, 1, 0.7])
 
-# Panel 1: Communities with nodes colored
-ax1 = axes[0, 0]
-node_colors = [node_to_comm.get(node, -1) for node in G.nodes()]
-nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=25,
-                      cmap='tab20', alpha=0.8, ax=ax1)
-nx.draw_networkx_edges(G, pos, alpha=0.15, width=0.4, ax=ax1)
+
+# Panel 1: top-left
+ax1 = fig.add_subplot(gs[0, 0])
+
+# Store limits before drawing
+x_coords = [x for x, y in pos.values()]
+y_coords = [y for x, y in pos.values()]
+xlim = [min(x_coords), max(x_coords)]
+ylim = [min(y_coords), max(y_coords)]
+
+# --- Draw Venice street network as black background ---
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):  # MultiLineString
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            ax1.plot(xs, ys, linewidth=0.3, alpha=0.3, color="white")
+    else:
+        xs, ys = edge.geometry.xy
+        ax1.plot(xs, ys, linewidth=0.3, alpha=0.3, color="white")
+        
+        
+# --- Draw only nodes for each community on top (no edges) ---
+for comm_idx, comm in enumerate(infomap_comm_list):
+    comm_nodes = list(comm)
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    if len(xs) == 0:
+        continue
+    color = community_color_map.get(comm_idx, (0.5, 0.5, 0.5, 1.0))
+    ax1.scatter(xs, ys, s=25, color=[color], alpha=0.8)
+
+# Restore axis and configure
+ax1.set_xlim(xlim)
+ax1.set_ylim(ylim)
 ax1.set_title(f'{n_communities} Communities (Modularity: {infomap_modularity:.3f})')
-ax1.set_xlabel('Longitude')
-ax1.set_ylabel('Latitude')
-ax1.axis('equal')
+ax1.set_xlabel('Longitude', fontsize=9)
+ax1.set_ylabel('Latitude', fontsize=9)
+ax1.set_aspect('equal', adjustable='datalim')
+ax1.tick_params(axis='both', which='major', labelsize=7)
+ax1.spines['top'].set_visible(True)
+ax1.spines['right'].set_visible(True)
+ax1.spines['bottom'].set_visible(True)
+ax1.spines['left'].set_visible(True)
 
-# Panel 2: Community sizes distribution
-ax2 = axes[0, 1]
+
+
+
+
+# Panel 2: top-right
+
+ax2 = fig.add_subplot(gs[0, 1])
 comm_sizes = sorted([len(comm) for comm in infomap_comm_list], reverse=True)
-#ax2.bar(range(len(comm_sizes)), comm_sizes, color='steelblue', alpha=0.7)
-
 ax2.bar([i + 1 for i in range(len(comm_sizes))], comm_sizes, color='steelblue', alpha=0.7)
-
-ax2.set_xlabel('Community Index (sorted by size)')
+ax2.set_xlabel('Community Rank (1=largest)')
 ax2.set_ylabel('Number of Nodes')
 ax2.set_title('Community Size Distribution')
 ax2.grid(True, alpha=0.3)
+ax2.text(0.98, 0.98, '• Shows inequality in community sizes\n• Largest community dominates',
+         transform=ax2.transAxes, fontsize=8, verticalalignment='top',
+         horizontalalignment='right',
+         bbox=dict(boxstyle='round', facecolor="none", alpha=0.7))
 
-# Panel 3: Top 5 largest communities highlighted
-ax3 = axes[1, 0]
-# Sort communities by size
-sorted_comms = sorted(enumerate(infomap_comm_list), key=lambda x: len(x[1]), reverse=True)
 
-# Draw all nodes in gray first
-nx.draw_networkx_nodes(G, pos, node_color='lightgray', node_size=15, 
-                      alpha=0.3, ax=ax3)
-nx.draw_networkx_edges(G, pos, alpha=0.1, width=0.3, edge_color='gray', ax=ax3)
 
-# Highlight top 5 communities
-top5_colors = plt.cm.Set1(np.linspace(0, 1, 5))
+# Panel 3: bottom-left – with Venice map as background
+ax3 = fig.add_subplot(gs[2, 0])
+
+# Store limits before drawing
+x_coords = [x for x, y in pos.values()]
+y_coords = [y for x, y in pos.values()]
+xlim = [min(x_coords), max(x_coords)]
+ylim = [min(y_coords), max(y_coords)]
+
+# --- Draw full Venice network as background ---
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):  # MultiLineString
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            ax3.plot(xs, ys, linewidth=0.5, alpha=0.5, color="black")
+    else:
+        xs, ys = edge.geometry.xy
+        ax3.plot(xs, ys, linewidth=0.5, alpha=0.5, color="black")
+
+# --- Draw top communities on top ---
 legend_patches = []
-for rank, (comm_idx, comm) in enumerate(sorted_comms[:5]):
+for rank, (comm_idx, comm) in enumerate(sorted_communities_by_size[:6]):
     comm_nodes = list(comm)
-    nx.draw_networkx_nodes(G, pos, nodelist=comm_nodes,
-                          node_color=[top5_colors[rank]], 
-                          node_size=30, alpha=0.9, ax=ax3)
-    patch = mpatches.Patch(color=top5_colors[rank], 
-                          label=f'#{rank+1}: {len(comm)} nodes')
+    color = community_color_map[comm_idx]
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    ax3.scatter(xs, ys, s=30, color=color, alpha=0.9)
+    patch = mpatches.Patch(color=color, label=f'#{rank+1}: {len(comm)} nodes')
     legend_patches.append(patch)
 
-ax3.set_title('Top 5 Largest Communities')
-ax3.legend(handles=legend_patches, loc='upper right')
-ax3.set_xlabel('Longitude')
-ax3.set_ylabel('Latitude')
-ax3.axis('equal')
+# Restore axis and configure
+ax3.set_xlim(xlim)
+ax3.set_ylim(ylim)
+ax3.set_title('Top 6 Largest Communities Highlighted on Venice Map')
+ax3.legend(handles=legend_patches, loc='upper right', fontsize=8)
+ax3.set_xlabel('Longitude', fontsize=9)
+ax3.set_ylabel('Latitude', fontsize=9)
+ax3.set_aspect('equal', adjustable='datalim')
+ax3.tick_params(axis='both', which='major', labelsize=7, labelbottom=True, labelleft=True)
+ax3.spines['top'].set_visible(True)
+ax3.spines['right'].set_visible(True)
+ax3.spines['bottom'].set_visible(True)
+ax3.spines['left'].set_visible(True)
 
-# Panel 4: Community geographic spread
-ax4 = axes[1, 1]
-spreads = []
-for i, comm in enumerate(infomap_comm_list):
+
+
+
+# Panel 4: bottom-right
+ax4 = fig.add_subplot(gs[2, 1])
+sorted_sizes = []
+sorted_spreads = []
+sorted_colors = []
+for rank, (comm_idx, comm) in enumerate(sorted_communities_by_size):
     nodes_list = list(comm)
     coords = np.array([pos[node] for node in nodes_list])
     lon_range = coords[:, 0].max() - coords[:, 0].min()
     lat_range = coords[:, 1].max() - coords[:, 1].min()
     geographic_spread = np.sqrt(lon_range**2 + lat_range**2)
-    spreads.append(geographic_spread)
-
-ax4.scatter(comm_sizes, spreads, c=range(len(comm_sizes)), 
-           cmap='viridis', s=100, alpha=0.7, edgecolor='black')
+    sorted_sizes.append(len(comm))
+    sorted_spreads.append(geographic_spread)
+    sorted_colors.append(community_color_map[comm_idx])
+ax4.scatter(sorted_sizes, sorted_spreads, c=sorted_colors, s=120, alpha=0.85, edgecolor="black")
 ax4.set_xlabel('Community Size (nodes)')
-ax4.set_ylabel('Geographic Spread')
+ax4.set_ylabel('Geographic Spread (degrees)')
 ax4.set_title('Community Size vs Geographic Spread')
 ax4.grid(True, alpha=0.3)
+ax4.text(0.98, 0.02, '• Each point = one community', transform=ax4.transAxes,
+         fontsize=8, verticalalignment='bottom', horizontalalignment='right',
+         bbox=dict(boxstyle='round', facecolor="none", alpha=0.7))
 
+
+
+
+
+# Extract sizes of the 6 largest communities
+size1 = sorted_sizes[0]
+size2 = sorted_sizes[1]
+size3 = sorted_sizes[2]
+size4 = sorted_sizes[3]
+size5 = sorted_sizes[4]
+size6 = sorted_sizes[5]
+
+# Correlation and p-value
+from scipy.stats import pearsonr
+corr_value, p_value = pearsonr(sorted_sizes, sorted_spreads)
+
+print(f"\nCorrelation between community size and geographic spread: (R={corr_value:.4f}) (P={p_value:.4e})")
+
+# Identify outlier community via positive residual from linear regression
+coeffs = np.polyfit(sorted_sizes, sorted_spreads, 1)
+expected_spread = np.polyval(coeffs, sorted_sizes)
+residuals = sorted_spreads - expected_spread
+
+outlier_index = np.argmax(residuals)
+outlier_comm = sorted_communities_by_size[outlier_index][0]
+
+
+
+# ------------------------
+# Save and show
+# ------------------------
 plt.tight_layout()
 save_path = os.path.join("OutputImages", "Infomap Community Detection-Detailed Analysis.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
+
+
+
 # ========== VISUALIZATION 3: Individual Large Communities ==========
-print("Creating individual community visualizations...")
+print("Creating individual community visualizations with Venice background...")
 
 # Get top 6 largest communities
-sorted_comms = sorted(enumerate(infomap_comm_list), key=lambda x: len(x[1]), reverse=True)
-n_to_plot = min(6, len(sorted_comms))
+n_to_plot = min(6, len(sorted_communities_by_size))
 
 fig, axes = plt.subplots(2, 3, figsize=(18, 12))
 fig.suptitle('Individual Community Visualizations (Largest 6)', fontsize=16, fontweight='bold')
 axes = axes.flatten()
 
 for i in range(n_to_plot):
-    comm_idx, comm = sorted_comms[i]
+    comm_idx, comm = sorted_communities_by_size[i]
     ax = axes[i]
     
-    # Draw all nodes in light gray
-    nx.draw_networkx_nodes(G, pos, node_color='lightgray', 
-                          node_size=10, alpha=0.2, ax=ax)
-    nx.draw_networkx_edges(G, pos, alpha=0.05, width=0.3, 
-                          edge_color='lightgray', ax=ax)
+    # Store limits before drawing
+    x_coords = [x for x, y in pos.values()]
+    y_coords = [y for x, y in pos.values()]
+    xlim = [min(x_coords), max(x_coords)]
+    ylim = [min(y_coords), max(y_coords)]
     
-    # Highlight this community
+    # --- Draw Venice street network as background ---
+    for _, edge in gdf_edges.iterrows():
+        if hasattr(edge.geometry, "geoms"):  # MultiLineString
+            for linestring in edge.geometry.geoms:
+                xs, ys = linestring.xy
+                ax.plot(xs, ys, linewidth=0.5, alpha=0.5, color="black")
+        else:
+            xs, ys = edge.geometry.xy
+            ax.plot(xs, ys, linewidth=0.5, alpha=0.5, color="black")
+    
+    # --- Draw all nodes in light gray on top of background ---
+    comm_nodes_all = G.nodes()
+    xs_all = [pos[node][0] for node in comm_nodes_all if node in pos]
+    ys_all = [pos[node][1] for node in comm_nodes_all if node in pos]
+    ax.scatter(xs_all, ys_all, s=10, color='lightgray', alpha=0.2)
+    
+    # --- Highlight this community with consistent color ---
     comm_nodes = list(comm)
-    nx.draw_networkx_nodes(G, pos, nodelist=comm_nodes,
-                          node_color='red', node_size=40, 
-                          alpha=0.8, ax=ax)
+    community_color = community_color_map[comm_idx]
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    ax.scatter(xs, ys, s=40, color=[community_color], alpha=0.8)
     
     # Draw edges within community
     subgraph = G.subgraph(comm_nodes)
     nx.draw_networkx_edges(subgraph, pos, alpha=0.5, width=1.0,
-                          edge_color='red', ax=ax)
+                           edge_color=community_color, ax=ax)
     
-    # Get geographic bounds
-    coords = np.array([pos[node] for node in comm_nodes])
-    
-    ax.set_title(f'Community {comm_idx+1}\n{len(comm)} nodes, '
-                f'{subgraph.number_of_edges()} edges',
-                fontsize=10)
+    # Restore axis and configure
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_title(f'Community {comm_idx+1} (Rank #{i+1})\n{len(comm)} nodes, '
+                 f'{subgraph.number_of_edges()} edges', fontsize=10)
     ax.set_xlabel('Longitude', fontsize=8)
     ax.set_ylabel('Latitude', fontsize=8)
-    ax.axis('equal')
+    ax.set_aspect('equal', adjustable='datalim')
+    ax.tick_params(axis='both', which='major', labelsize=7)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.2f}'))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, p: f'{y:.2f}'))
+    ax.spines['top'].set_visible(True)
+    ax.spines['right'].set_visible(True)
+    ax.spines['bottom'].set_visible(True)
+    ax.spines['left'].set_visible(True)
+    
+    # Add note for first panel only
+    if i == 0:
+        ax.text(0.02, 0.98, '• Background: Venice street network\n'
+                             '• Highlighted: this community',
+                transform=ax.transAxes, fontsize=7, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor="none", alpha=0.7))
 
 # Hide unused subplots
 for i in range(n_to_plot, 6):
@@ -299,11 +555,32 @@ save_path = os.path.join("OutputImages", "Individual Community Visualizations.pn
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # ========== VISUALIZATION 4: Heatmap-style Density View ==========
-print("Creating density heatmap visualization...")
+print("Creating density heatmap visualization with Venice background...")
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
 fig.suptitle('Community Density Analysis', fontsize=16, fontweight='bold')
+
+# Store geographic limits
+x_coords = [x for x, y in pos.values()]
+y_coords = [y for x, y in pos.values()]
+xlim = [min(x_coords), max(x_coords)]
+ylim = [min(y_coords), max(y_coords)]
+
+# --- Draw Venice network as background for both axes ---
+for ax in [ax1, ax2]:
+    for _, edge in gdf_edges.iterrows():
+        if hasattr(edge.geometry, "geoms"):  # MultiLineString
+            for linestring in edge.geometry.geoms:
+                xs, ys = linestring.xy
+                ax.plot(xs, ys, linewidth=0.3, alpha=0.3, color="black")
+        else:
+            xs, ys = edge.geometry.xy
+            ax.plot(xs, ys, linewidth=0.3, alpha=0.3, color="black")
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_aspect('equal', adjustable='datalim')
 
 # Left: Node density by community
 coords_list = []
@@ -312,23 +589,24 @@ for node in G.nodes():
     x, y = pos[node]
     comm = node_to_comm.get(node, -1)
     coords_list.append([x, y])
-    colors_list.append(comm+1)
+    colors_list.append(community_color_map[comm])
 
 coords_array = np.array(coords_list)
 
 scatter1 = ax1.scatter(coords_array[:, 0], coords_array[:, 1], 
-                      c=colors_list, cmap='tab20', s=50, alpha=0.7)
+                      c=colors_list, s=50, alpha=0.7)
 ax1.set_title('Nodes Colored by Community')
 ax1.set_xlabel('Longitude')
 ax1.set_ylabel('Latitude')
-ax1.axis('equal')
-plt.colorbar(scatter1, ax=ax1, label='Community ID')
+ax1.text(0.02, 0.98, '• Each point = one street intersection\n• Colors show community membership',
+         transform=ax1.transAxes, fontsize=8, verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor="none", alpha=0.7))
 
 # Right: Geographic density
 from scipy.spatial import cKDTree
 tree = cKDTree(coords_array)
 densities = []
-radius = 0.001  # Adjust based on your coordinate scale
+radius = 0.001
 
 for coord in coords_array:
     nearby = tree.query_ball_point(coord, r=radius)
@@ -339,20 +617,23 @@ scatter2 = ax2.scatter(coords_array[:, 0], coords_array[:, 1],
 ax2.set_title('Node Density (Geographic)')
 ax2.set_xlabel('Longitude')
 ax2.set_ylabel('Latitude')
-ax2.axis('equal')
-plt.colorbar(scatter2, ax=ax2, label='Local Density')
+cbar2 = plt.colorbar(scatter2, ax=ax2, label='Local Density')
+ax2.text(0.02, 0.98, '• Warmer colors = higher street density\n• Shows concentration of intersections\n• Independent of community structure',
+         transform=ax2.transAxes, fontsize=8, verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor="none", alpha=0.7))
 
 plt.tight_layout()
 save_path = os.path.join("OutputImages", "Community Density Analysis.png")
 plt.savefig(save_path, dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # ========== Community Statistics ==========
 print("\n" + "="*60)
 print("COMMUNITY STATISTICS")
 print("="*60)
 
-for i, (comm_idx, comm) in enumerate(sorted_comms[:6]):
+for i, (comm_idx, comm) in enumerate(sorted_communities_by_size[:6]):
     nodes_list = list(comm)
     coords = np.array([pos[node] for node in nodes_list])
     
@@ -416,10 +697,6 @@ stats_df.to_csv("VeniceNetworkFiles/venice_infomap_community_stats.csv", index=F
 print("Community statistics saved to: VeniceNetworkFiles: venice_infomap_community_stats.csv")
 
 print("\nAll visualizations and analysis complete!")
-
-
-
-
 
 
 
