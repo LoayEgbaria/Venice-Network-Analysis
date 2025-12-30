@@ -40,10 +40,6 @@ plt.savefig("OutputImages/venice_graph.png", dpi=300, bbox_inches='tight')
 plt.show()  # Display the plot
 
 
-
-
-
-
 # Convert to undirected for community detection
 G = graph.to_undirected()
 
@@ -55,7 +51,10 @@ if not nx.is_connected(G):
     G = G.subgraph(largest_cc).copy()
     print(f"Largest component: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
 
-# ========== Infomap Algorithm ==========
+
+
+'''
+# ============================== Infomap Algorithm ==============================
 print("\n" + "="*60)
 print("Running Infomap Algorithm...")
 print("="*60)
@@ -697,10 +696,388 @@ stats_df.to_csv("VeniceNetworkFiles/venice_infomap_community_stats.csv", index=F
 print("Community statistics saved to: VeniceNetworkFiles: venice_infomap_community_stats.csv")
 
 print("\nAll visualizations and analysis complete!")
+'''
 
 
+# ========== GIRVAN-NEWMAN ALGORITHM ==========
+print("\n" + "="*60)
+print("Running Girvan-Newman Algorithm...")
+print("="*60)
 
+from networkx.algorithms.community import girvan_newman
 
+# Get node positions from graph
+pos = {node: (data['x'], data['y']) for node, data in G.nodes(data=True)}
+
+# Run Girvan-Newman (generates hierarchical communities)
+print("Computing communities (this may take a while for large graphs)...")
+
+# Get iterator
+gn_iterator = girvan_newman(G)
+
+# Extract communities at different levels
+gn_communities_levels = []
+max_levels = 15  # Test multiple levels to find best modularity
+
+try:
+    for i, communities in enumerate(gn_iterator):
+        if i >= max_levels:
+            break
+        
+        comm_list = [set(c) for c in communities]
+        modularity = nx.algorithms.community.modularity(G, comm_list)
+        
+        gn_communities_levels.append({
+            'level': i,
+            'num_communities': len(comm_list),
+            'communities': comm_list,
+            'modularity': modularity
+        })
+        
+        print(f"Level {i}: {len(comm_list)} communities, Modularity: {modularity:.4f}")
+        
+except Exception as e:
+    print(f"Stopped at level {i}: {e}")
+
+# Find best level by modularity
+best_level = max(gn_communities_levels, key=lambda x: x['modularity'])
+gn_comm_list = best_level['communities']
+gn_modularity = best_level['modularity']
+
+print(f"\n{'='*60}")
+print(f"BEST RESULT:")
+print(f"  Level: {best_level['level']}")
+print(f"  Communities: {best_level['num_communities']}")
+print(f"  Modularity: {gn_modularity:.4f}")
+print(f"{'='*60}")
+
+# Community sizes
+sizes = [len(comm) for comm in gn_comm_list]
+print(f"\nCommunity sizes (top 10): {sorted(sizes, reverse=True)[:10]}")
+
+# ========== VISUALIZATION SETUP ==========
+print("\n" + "="*60)
+print("Creating Visualizations...")
+print("="*60)
+
+# Convert graph to GeoDataFrames for better plotting
+gdf_nodes, gdf_edges = ox.graph_to_gdfs(G)
+
+# Create color map for communities
+def assign_colors(communities, nodes):
+    """Assign color index to each node based on community"""
+    node_to_comm = {}
+    for i, comm in enumerate(communities):
+        for node in comm:
+            node_to_comm[node] = i
+    return node_to_comm
+
+node_to_comm = assign_colors(gn_comm_list, G.nodes())
+
+# Sort communities by size for consistent coloring
+sorted_communities_by_size = sorted(enumerate(gn_comm_list), 
+                                   key=lambda x: len(x[1]), reverse=True)
+
+# Generate colors
+n_communities = len(gn_comm_list)
+if n_communities <= 20:
+    base_colors = plt.cm.tab20(np.linspace(0, 1, n_communities))
+else:
+    cmap1 = plt.cm.tab20(np.linspace(0, 1, 20))
+    cmap2 = plt.cm.tab20b(np.linspace(0, 1, 20))
+    cmap3 = plt.cm.tab20c(np.linspace(0, 1, 20))
+    base_colors = np.vstack([cmap1, cmap2, cmap3])[:n_communities]
+
+# Map communities to colors by size rank
+community_color_map = {}
+for rank, (comm_idx, _) in enumerate(sorted_communities_by_size):
+    community_color_map[comm_idx] = base_colors[rank]
+
+# ========== VISUALIZATION 1: Main Community Map ==========
+print("Creating main community visualization...")
+
+fig, ax = plt.subplots(figsize=(14, 12))
+
+# Draw edges (light gray)
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):  # MultiLineString
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            ax.plot(xs, ys, linewidth=0.4, alpha=0.6, color="lightgray")
+    else:
+        xs, ys = edge.geometry.xy
+        ax.plot(xs, ys, linewidth=0.4, alpha=0.6, color="lightgray")
+
+# Draw nodes per community
+for comm_idx, comm in enumerate(gn_comm_list):
+    comm_nodes = list(comm)
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    if len(xs) == 0:
+        continue
+    color = community_color_map.get(comm_idx, (0.5, 0.5, 0.5, 1.0))
+    ax.scatter(xs, ys, s=18, color=[color], alpha=0.85)
+
+# Decorations
+ax.set_title(f'Girvan-Newman Communities - Venice Network\n'
+             f'{n_communities} communities (Level {best_level["level"]}), Modularity: {gn_modularity:.3f}',
+             fontsize=14, fontweight='bold')
+ax.set_xlabel('Longitude')
+ax.set_ylabel('Latitude')
+ax.set_aspect('equal')
+
+# Add explanatory text
+explanation = (
+    f"• Girvan-Newman hierarchical algorithm\n"
+    f"• Modularity score: {gn_modularity:.3f}\n"
+    f"• Best result from {len(gn_communities_levels)} levels tested"
+)
+ax.text(0.02, 0.98, explanation, transform=ax.transAxes,
+        fontsize=8, verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+# Legend (show top 10)
+if len(gn_comm_list) > 10:
+    legend_patches = []
+    for rank, (comm_idx, comm) in enumerate(sorted_communities_by_size[:10]):
+        c = community_color_map[comm_idx]
+        patch = mpatches.Patch(color=c, label=f'#{rank+1}: {len(comm)} nodes')
+        legend_patches.append(patch)
+    ax.legend(handles=legend_patches, bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
+else:
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
+
+# Save and show
+plt.tight_layout()
+save_path = os.path.join("OutputImages", "venice_girvan_newman_communities.png")
+plt.savefig(save_path, dpi=300, bbox_inches="tight")
+print(f"Saved: {save_path}")
+plt.show()
+
+# ========== VISUALIZATION 2: Multi-Panel Analysis ==========
+print("Creating detailed multi-panel visualization...")
+
+fig, axes = plt.subplots(2, 2, figsize=(18, 14))
+fig.suptitle('Girvan-Newman Community Detection - Detailed Analysis', 
+             fontsize=16, fontweight='bold')
+
+# Get coordinate limits
+x_coords = [x for x, y in pos.values()]
+y_coords = [y for x, y in pos.values()]
+xlim = [min(x_coords), max(x_coords)]
+ylim = [min(y_coords), max(y_coords)]
+
+# Panel 1: Community map with Venice background
+ax1 = axes[0, 0]
+
+# Draw Venice network background
+for _, edge in gdf_edges.iterrows():
+    if hasattr(edge.geometry, "geoms"):
+        for linestring in edge.geometry.geoms:
+            xs, ys = linestring.xy
+            ax1.plot(xs, ys, linewidth=0.3, alpha=0.3, color="black")
+    else:
+        xs, ys = edge.geometry.xy
+        ax1.plot(xs, ys, linewidth=0.3, alpha=0.3, color="black")
+
+# Draw communities
+for comm_idx, comm in enumerate(gn_comm_list):
+    comm_nodes = list(comm)
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    if len(xs) == 0:
+        continue
+    color = community_color_map.get(comm_idx, (0.5, 0.5, 0.5, 1.0))
+    ax1.scatter(xs, ys, s=25, color=[color], alpha=0.8)
+
+ax1.set_xlim(xlim)
+ax1.set_ylim(ylim)
+ax1.set_title(f'{n_communities} Communities (Level {best_level["level"]})')
+ax1.set_xlabel('Longitude', fontsize=9)
+ax1.set_ylabel('Latitude', fontsize=9)
+ax1.set_aspect('equal')
+
+# Panel 2: Community size distribution
+ax2 = axes[0, 1]
+comm_sizes = sorted([len(comm) for comm in gn_comm_list], reverse=True)
+ax2.bar(range(1, len(comm_sizes) + 1), comm_sizes, color='steelblue', alpha=0.7)
+ax2.set_xlabel('Community Rank (1=largest)')
+ax2.set_ylabel('Number of Nodes')
+ax2.set_title('Community Size Distribution')
+ax2.grid(True, alpha=0.3)
+
+# Panel 3: Modularity by level
+ax3 = axes[1, 0]
+levels = [x['level'] for x in gn_communities_levels]
+modularities = [x['modularity'] for x in gn_communities_levels]
+ax3.plot(levels, modularities, marker='o', linewidth=2, markersize=8, color='darkgreen')
+ax3.axvline(best_level['level'], color='red', linestyle='--', linewidth=2, 
+            label=f'Best: Level {best_level["level"]}')
+ax3.set_xlabel('Hierarchical Level')
+ax3.set_ylabel('Modularity')
+ax3.set_title('Modularity vs Hierarchical Level')
+ax3.grid(True, alpha=0.3)
+ax3.legend()
+
+# Panel 4: Number of communities by level
+ax4 = axes[1, 1]
+num_comms = [x['num_communities'] for x in gn_communities_levels]
+ax4.plot(levels, num_comms, marker='s', linewidth=2, markersize=8, color='darkorange')
+ax4.axvline(best_level['level'], color='red', linestyle='--', linewidth=2,
+            label=f'Best: Level {best_level["level"]}')
+ax4.set_xlabel('Hierarchical Level')
+ax4.set_ylabel('Number of Communities')
+ax4.set_title('Number of Communities vs Level')
+ax4.grid(True, alpha=0.3)
+ax4.legend()
+
+plt.tight_layout()
+save_path = os.path.join("OutputImages", "venice_girvan_newman_detailed_analysis.png")
+plt.savefig(save_path, dpi=300, bbox_inches="tight")
+print(f"Saved: {save_path}")
+plt.show()
+
+# ========== VISUALIZATION 3: Top 6 Largest Communities ==========
+print("Creating individual community visualizations...")
+
+n_to_plot = min(6, len(sorted_communities_by_size))
+fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+fig.suptitle('Individual Community Visualizations (Largest 6)', fontsize=16, fontweight='bold')
+axes = axes.flatten()
+
+for i in range(n_to_plot):
+    comm_idx, comm = sorted_communities_by_size[i]
+    ax = axes[i]
+    
+    # Draw Venice street network as background
+    for _, edge in gdf_edges.iterrows():
+        if hasattr(edge.geometry, "geoms"):
+            for linestring in edge.geometry.geoms:
+                xs, ys = linestring.xy
+                ax.plot(xs, ys, linewidth=0.5, alpha=0.5, color="lightgray")
+        else:
+            xs, ys = edge.geometry.xy
+            ax.plot(xs, ys, linewidth=0.5, alpha=0.5, color="lightgray")
+    
+    # Highlight this community
+    comm_nodes = list(comm)
+    community_color = community_color_map[comm_idx]
+    xs = [pos[node][0] for node in comm_nodes if node in pos]
+    ys = [pos[node][1] for node in comm_nodes if node in pos]
+    ax.scatter(xs, ys, s=40, color=[community_color], alpha=0.9)
+    
+    # Draw edges within community
+    subgraph = G.subgraph(comm_nodes)
+    for edge in subgraph.edges():
+        x_coords = [pos[edge[0]][0], pos[edge[1]][0]]
+        y_coords = [pos[edge[0]][1], pos[edge[1]][1]]
+        ax.plot(x_coords, y_coords, color=community_color, alpha=0.5, linewidth=1.0)
+    
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_title(f'Community {comm_idx+1} (Rank #{i+1})\n{len(comm)} nodes, '
+                 f'{subgraph.number_of_edges()} edges', fontsize=10)
+    ax.set_xlabel('Longitude', fontsize=8)
+    ax.set_ylabel('Latitude', fontsize=8)
+    ax.set_aspect('equal')
+    ax.tick_params(axis='both', which='major', labelsize=7)
+
+# Hide unused subplots
+for i in range(n_to_plot, 6):
+    axes[i].axis('off')
+
+plt.tight_layout()
+save_path = os.path.join("OutputImages", "venice_girvan_newman_individual_communities.png")
+plt.savefig(save_path, dpi=300, bbox_inches="tight")
+print(f"Saved: {save_path}")
+plt.show()
+
+# ========== COMMUNITY STATISTICS ==========
+print("\n" + "="*60)
+print("COMMUNITY STATISTICS (Top 10 Largest)")
+print("="*60)
+
+for i, (comm_idx, comm) in enumerate(sorted_communities_by_size[:10]):
+    nodes_list = list(comm)
+    coords = np.array([pos[node] for node in nodes_list])
+    
+    print(f"\nCommunity {comm_idx+1} (Rank #{i+1}):")
+    print(f"  Size: {len(comm)} nodes")
+    print(f"  Geographic center: ({coords[:, 0].mean():.6f}, {coords[:, 1].mean():.6f})")
+    print(f"  Geographic bounds:")
+    print(f"    Longitude: [{coords[:, 0].min():.6f}, {coords[:, 0].max():.6f}]")
+    print(f"    Latitude:  [{coords[:, 1].min():.6f}, {coords[:, 1].max():.6f}]")
+    print(f"  Geographic spread:")
+    print(f"    Lon range: {coords[:, 0].max() - coords[:, 0].min():.6f}")
+    print(f"    Lat range: {coords[:, 1].max() - coords[:, 1].min():.6f}")
+    
+    # Network statistics
+    subgraph = G.subgraph(nodes_list)
+    print(f"  Network statistics:")
+    print(f"    Edges: {subgraph.number_of_edges()}")
+    print(f"    Density: {nx.density(subgraph):.4f}")
+    if len(nodes_list) > 1:
+        try:
+            print(f"    Avg clustering: {nx.average_clustering(subgraph):.4f}")
+        except:
+            pass
+
+# ========== SAVE RESULTS ==========
+print("\n" + "="*60)
+print("Saving Results...")
+print("="*60)
+
+# Save community assignments
+results_df = pd.DataFrame({
+    'node_id': list(G.nodes()),
+    'longitude': [pos[node][0] for node in G.nodes()],
+    'latitude': [pos[node][1] for node in G.nodes()],
+    'girvan_newman_community': [node_to_comm.get(node, -1) for node in G.nodes()]
+})
+
+results_df.to_csv("VeniceNetworkFiles/venice_girvan_newman_communities.csv", index=False)
+print("Community assignments saved to: VeniceNetworkFiles/venice_girvan_newman_communities.csv")
+
+# Save community statistics
+comm_stats = []
+for i, comm in enumerate(gn_comm_list):
+    nodes_list = list(comm)
+    coords = np.array([pos[node] for node in nodes_list])
+    subgraph = G.subgraph(nodes_list)
+    
+    comm_stats.append({
+        'community_id': i,
+        'size': len(comm),
+        'num_edges': subgraph.number_of_edges(),
+        'density': nx.density(subgraph),
+        'center_lon': coords[:, 0].mean(),
+        'center_lat': coords[:, 1].mean(),
+        'lon_min': coords[:, 0].min(),
+        'lon_max': coords[:, 0].max(),
+        'lat_min': coords[:, 1].min(),
+        'lat_max': coords[:, 1].max()
+    })
+
+stats_df = pd.DataFrame(comm_stats)
+stats_df.to_csv("VeniceNetworkFiles/venice_girvan_newman_community_stats.csv", index=False)
+print("Community statistics saved to: VeniceNetworkFiles/venice_girvan_newman_community_stats.csv")
+
+# Save hierarchical results
+hierarchy_df = pd.DataFrame([{
+    'level': x['level'],
+    'num_communities': x['num_communities'],
+    'modularity': x['modularity']
+} for x in gn_communities_levels])
+hierarchy_df.to_csv("VeniceNetworkFiles/venice_girvan_newman_hierarchy.csv", index=False)
+print("Hierarchical analysis saved to: VeniceNetworkFiles/venice_girvan_newman_hierarchy.csv")
+
+print("\n" + "="*60)
+print("GIRVAN-NEWMAN ANALYSIS COMPLETE!")
+print("="*60)
+print(f"Total nodes analyzed: {len(results_df)}")
+print(f"Best modularity: {gn_modularity:.4f}")
+print(f"Communities found: {n_communities}")
+print(f"Files saved in: VeniceNetworkFiles/ and OutputImages/")
 #====================================== Girvan-Newman Algorithm START ======================================#
 
 '''
