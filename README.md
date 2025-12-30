@@ -568,7 +568,9 @@ Community 0 (Rank #1):
 
 ## Overview
 
-This method provides an alternative hierarchical approach to community detection. Unlike Infomap's information-theoretic method, Girvan-Newman uses edge betweenness to progressively divide the network. **Currently commented out** due to computational intensity, but included for comparative analysis.
+This method provides an alternative hierarchical approach to community detection. Unlike Infomap's information-theoretic method, Girvan-Newman uses edge betweenness to progressively divide the network, providing multi-scale community structure analysis.
+
+(**Currently commented out** due to computational intensity, but included for comparative analysis).
 
 ## Methodology
 
@@ -587,14 +589,12 @@ The Girvan-Newman algorithm is a **divisive hierarchical clustering** method tha
 ### Hierarchical Output
 
 Unlike Infomap's flat partition, Girvan-Newman produces a **hierarchy:**
-
 ```
-Level 0: 1 community (entire network)
-Level 1: 2 communities (first major split)
-Level 2: 3 communities (next split)
-Level 3: 4 communities
+Level 0: 2 communities (first split)
+Level 1: 3+ communities (subsequent splits)
+Level 2: More communities (process continues)
 ...
-Level N: N+1 communities (every node isolated)
+Level N: Eventually isolated nodes
 ```
 
 This allows exploring community structure at multiple resolutions.
@@ -605,27 +605,27 @@ This allows exploring community structure at multiple resolutions.
 |--------|---------|---------------|
 | **Approach** | Information-theoretic (random walks, compression) | Structural (edge betweenness, shortest paths) |
 | **Output** | Single flat partition | Hierarchical dendrogram |
-| **Speed** | Fast: O(E log E) | Slow: O(m²n) to O(m²n²) |
-| **Memory** | Modest: O(N + E) | High: O(N²) for betweenness |
-| **Best for** | Large networks, single resolution | Small networks, multi-scale analysis |
+| **Speed** | Fast: O(E log E) | Slow: O(m²n) where m=edges, n=nodes |
+| **Memory** | Modest: O(N + E) | High: O(N + E) storage, O(N²) operations |
+| **Best for** | Large networks, single resolution | Smaller networks, multi-scale analysis |
 | **Resolution control** | Markov time parameter | Choose level in hierarchy |
-| **Deterministic** | Stochastic (needs seed) | Deterministic (same input = same output) |
+| **Deterministic** | Stochastic by default, deterministic with seed | Deterministic (same input = same output) |
 
-**Why it's commented out for Venice:**
-- Venice network: ~30,000 nodes, ~40,000 edges
-- Girvan-Newman: Estimated 30-120 minutes per run
-- Multiple iterations needed to explore hierarchy: 10 × 30min = 5+ hours
+
+**Computational considerations for Venice:**
+- Venice network (largest component): ~14,000-16,000 nodes, ~18,000-20,000 edges
+- Girvan-Newman: Estimated 10-30 minutes for 15 levels (hardware dependent)
 - Infomap completes same analysis in ~5 seconds
+- Trade-off: Girvan-Newman provides hierarchical insights not available from Infomap
 
 ## Code Implementation
 
 ### Step 1: Hierarchical Community Generation
-
 ```python
 from networkx.algorithms.community import girvan_newman
 
 gn_iterator = girvan_newman(G)
-max_levels = 10  # Limit iterations for computational efficiency
+max_levels = 15  # Limit iterations for computational efficiency
 ```
 
 **Purpose:** Generate community structures at multiple scales.
@@ -633,13 +633,12 @@ max_levels = 10  # Limit iterations for computational efficiency
 **Process:**
 - `girvan_newman(G)` returns an iterator (lazy evaluation)
 - Each iteration removes one edge and recalculates
-- `max_levels = 10` limits to first 10 divisions (2 to 11 communities)
+- `max_levels = 15` limits to first 15 divisions
 - Full decomposition (to N communities) would be impractically slow
 
 ---
 
 ### Step 2: Modularity Tracking
-
 ```python
 for i, communities in enumerate(gn_iterator):
     if i >= max_levels:
@@ -668,7 +667,6 @@ for i, communities in enumerate(gn_iterator):
 ---
 
 ### Step 3: Best Level Selection
-
 ```python
 best_level = max(gn_communities_levels, key=lambda x: x['modularity'])
 gn_comm_list = best_level['communities']
@@ -682,135 +680,234 @@ gn_modularity = best_level['modularity']
 - Use domain knowledge about expected structure
 - Visualize entire hierarchy and manually select
 
----
-
-### Step 4: Comparison with Infomap
-
-```python
-print(f"Infomap:")
-print(f"  Communities: {len(infomap_comm_list)}")
-print(f"  Modularity: {infomap_modularity:.4f}")
-
-print(f"Girvan-Newman:")
-print(f"  Communities: {len(gn_comm_list)}")
-print(f"  Modularity: {gn_modularity:.4f}")
-```
-
-**Purpose:** Quantitative comparison of both methods.
-
-**What to compare:**
-- **Number of communities:** Do methods agree on scale?
-- **Modularity:** Which produces stronger structure?
-- **Community sizes:** Similar distributions?
-- **Geographic coherence:** Do communities make spatial sense?
-
-**Expected outcomes:**
-- Methods rarely produce identical results
-- Both should have Q > 0.3 for Venice
-- Infomap often produces slightly higher modularity
-- Spatial coherence should be similar if both are valid
 
 ---
 
-## Visualization
+## Visualizations Generated
 
-```python
-fig, axes = plt.subplots(1, 2, figsize=(20, 10))
-```
+### 1. Main Community Map
+- **File:** `venice_girvan_newman_communities.png`
 
-**Purpose:** Side-by-side comparison of Infomap and Girvan-Newman results.
+**Figure 1: Girvan-Newman Community Detection - Complete Venice Network**
 
-**Left plot:** Infomap communities
-**Right plot:** Girvan-Newman communities (at best modularity level)
+![venice girvan newman communities](OutputImages/venice_girvan_newman_communities.png)
 
-**Visual comparison allows:**
-- Identifying agreement (similar community boundaries)
-- Spotting differences (where methods disagree)
-- Evaluating spatial coherence
-- Validating both methods
+**What this visualization shows:**
 
-********ADD EXAMPLE IMAGE HERE**********
+This map displays the complete Venice street network with nodes colored according to their community membership as determined by the Girvan-Newman algorithm. Each color represents a distinct community, with colors assigned by size rank (largest community gets the first color, second-largest gets the second color, etc.).
 
-*Figure 6: Side-by-side comparison of Infomap and Girvan-Newman community detection*
+**Key elements:**
+- **Network structure:** Gray edges show the complete street connectivity of Venice
+- **Community nodes:** Colored points represent street intersections, with each color indicating community membership
+- **Legend:** Shows the top 10 largest communities with their node counts (e.g., "#1: 3,247 nodes")
+- **Title information:** Displays the total number of communities detected, the hierarchical level selected, and the modularity score (typically 0.3-0.5)
+- **Explanatory text box:** Upper-left corner provides algorithm details and quality metrics
+
+**What to look for:**
+- Geographic coherence: Do communities form spatially contiguous regions?
+- Size distribution: Is there one dominant community or several comparable ones?
+- Spatial patterns: Do communities align with known Venice districts (sestieri) or waterways?
+- Boundary regions: Where do different communities meet? These are typically bridges or major thoroughfares.
+
+---
+
+### 2. Multi-Panel Detailed Analysis (2×2 grid)
+- **File:** `venice_girvan_newman_detailed_analysis.png`
+
+**Figure 2: Girvan-Newman Detailed Analysis - Four-Panel Comprehensive View**
+
+![venice girvan newman detailed analysis](OutputImages/venice_girvan_newman_detailed_analysis.png)
+
+**What this visualization shows:**
+
+This four-panel figure provides a comprehensive analytical view of the Girvan-Newman results, combining spatial, statistical, and hierarchical perspectives.
+
+**Panel-by-panel breakdown:**
+
+**Top-Left: Community Spatial Distribution**
+- Shows the same community map as Figure 1, but with the full Venice street network visible as background context
+- Demonstrates how communities are distributed across Venice's geographic space
+- Helps identify whether communities correspond to islands, neighborhoods, or other spatial features
+
+**Top-Right: Community Size Distribution (Bar Chart)**
+- X-axis: Community rank (1 = largest, 2 = second-largest, etc.)
+- Y-axis: Number of nodes in each community
+- Shows the inequality in community sizes
+- Typically reveals a power-law-like distribution with a few large communities and many small ones
+- Helps understand if the network has a dominant "core" community or balanced structure
+
+**Bottom-Left: Modularity vs Hierarchical Level**
+- X-axis: Hierarchical level (0 to 14 in our implementation)
+- Y-axis: Modularity score (quality metric, range −0.5 to 1.0)
+- Green line: Shows how modularity changes as more edges are removed
+- Red dashed line: Marks the level with maximum modularity (the "best" partition)
+- Reveals the optimal level for community detection
+- Typically shows modularity rising, peaking, then declining as the network becomes over-fragmented
+
+**Bottom-Right: Number of Communities vs Level**
+- X-axis: Hierarchical level (0 to 14)
+- Y-axis: Number of communities detected
+- Orange line: Shows how the network progressively divides
+- Red dashed line: Marks the optimal level (same as bottom-left)
+- Demonstrates the hierarchical nature of the algorithm
+- Generally increases monotonically, though the rate may vary
+
+**Key insights from this figure:**
+- **Optimal resolution:** The level where modularity peaks indicates the "natural" community structure
+- **Hierarchical structure:** Shows whether Venice has clear multi-scale organization
+- **Size inequality:** Reveals whether the network is dominated by one large component or has balanced communities
+- **Quality validation:** High modularity (>0.3) indicates strong community structure
+
+---
+
+### 3. Individual Community Views (2×3 grid)
+- **File:** `venice_girvan_newman_individual_communities.png`
+
+**Figure 3: Top Six Largest Communities - Individual Detailed Views**
+
+![venice girvan newman individual communities](OutputImages/venice_girvan_newman_individual_communities.png)
+
+**What this visualization shows:**
+
+This six-panel figure zooms into the largest six communities individually, showing each one in detail against the backdrop of the complete Venice street network.
+
+**Panel structure:**
+- Each subplot shows one community (ranked #1 through #6 by size)
+- Gray lines: Complete Venice street network (for geographic context)
+- Colored nodes: Members of the highlighted community
+- Colored edges: Internal connections within the community
+
+**Information displayed for each community:**
+- **Title:** Community ID, size rank, and node count (e.g., "Community 5 (Rank #1): 3,247 nodes")
+- **Edge count:** Number of internal edges showing connectivity
+- **Geographic extent:** Full Venice map maintained as reference
+- **Spatial coherence:** Whether the community forms a contiguous region
+
+**What to analyze:**
+
+**For individual communities:**
+- **Geographic coherence:** Does the community occupy a single contiguous region or multiple disconnected areas?
+- **Internal connectivity:** Dense edge networks suggest well-connected neighborhoods
+- **Spatial extent:** Some communities may be geographically compact, others sprawling
+- **Boundary definition:** Clear separation from other communities or fuzzy boundaries?
+
+**Across all six panels:**
+- **Spatial distribution:** Do large communities occupy different parts of Venice (e.g., main island vs. outer islands)?
+- **Size-geography relationship:** Are larger communities more sprawling or just more densely connected?
+- **Structural differences:** Do some communities show grid-like patterns while others are more organic?
+- **Real-world correspondence:** Do communities align with known Venice features like:
+  - Historic sestieri (San Marco, Castello, Cannaregio, etc.)
+  - Major islands (Murano, Burano)
+  - Main thoroughfares or canal systems
+
+**Typical observations for Venice:**
+- **Largest community (Rank #1):** Often covers the main island's central core
+- **Second/third communities:** May correspond to major sestieri or outer islands
+- **Smaller communities:** Often represent peripheral areas, bridges, or isolated island groups
+- **Geographic logic:** Well-detected communities should make intuitive sense given Venice's canal-separated structure
+
+This detailed view allows validation of the algorithm's results against real-world knowledge of Venice's urban geography and helps identify whether detected communities have meaningful interpretations beyond pure network statistics.
+
 
 ---
 
 ## Detailed Community Analysis
-
 ```python
 def analyze_communities(communities, name):
     for i, comm in enumerate(sorted(communities, key=len, reverse=True)[:5]):
         # Print statistics for top 5 communities
 ```
 
-**Purpose:** Compare community characteristics across both methods.
+**Purpose:** Detailed statistics for largest communities.
 
-**For each method's top 5 communities:**
-- Geographic bounds (longitude/latitude ranges)
-- Geographic spread (diagonal of bounding box)
-- Size in nodes
-- Internal connectivity
+**For each of top 10 communities:**
+- Size (number of nodes)
+- Geographic center (longitude, latitude)
+- Geographic bounds (bounding box)
+- Geographic spread (spatial extent)
+- Network statistics (edges, density, clustering coefficient)
 
 **Use cases:**
-- Validating consistency between methods
-- Identifying robust communities (found by both methods)
-- Understanding method-specific biases
+- Understanding community structure
+- Validating geographic coherence
+- Comparing with expected Venice districts (sestieri)
 
 ---
 
 ## Output Files
 
-### `venice_community_detection_results.csv`
-
-**Format:** CSV with results from both methods
+### 1. `venice_girvan_newman_communities.csv`
+**Node-level community assignments**
 
 | Column | Description |
 |--------|-------------|
 | `node_id` | OSM node identifier |
-| `longitude` | Geographic coordinate |
-| `latitude` | Geographic coordinate |
-| `infomap_community` | Infomap community ID |
-| `girvan_newman_community` | Girvan-Newman community ID |
+| `longitude` | Geographic coordinate (X) |
+| `latitude` | Geographic coordinate (Y) |
+| `girvan_newman_community` | Community ID (0 to N-1) |
+
+### 2. `venice_girvan_newman_community_stats.csv`
+**Community-level statistics**
+
+| Column | Description |
+|--------|-------------|
+| `community_id` | Community identifier |
+| `size` | Number of nodes in community |
+| `num_edges` | Internal edges within community |
+| `density` | Internal edge density [0,1] |
+| `center_lon`, `center_lat` | Geographic centroid |
+| `lon_min`, `lon_max` | Longitude bounds |
+| `lat_min`, `lat_max` | Latitude bounds |
+
+### 3. `venice_girvan_newman_hierarchy.csv`
+**Hierarchical level analysis**
+
+| Column | Description |
+|--------|-------------|
+| `level` | Hierarchical level (0 to max_levels-1) |
+| `num_communities` | Communities at this level |
+| `modularity` | Modularity score [−0.5, 1] |
 
 **Usage:**
-- Direct comparison of community assignments
-- Compute agreement metrics (Normalized Mutual Information, Adjusted Rand Index)
-- Identify nodes where methods disagree (boundary regions)
-- Statistical analysis of consistency
+- Track how modularity changes across hierarchy
+- Identify optimal number of communities
+- Visualize hierarchical decomposition process
 
 ---
 
-## When to Enable Girvan-Newman
+## When to Use Girvan-Newman
 
-**Enable if:**
-- Working with smaller networks (< 1,000 nodes)
+**Use if:**
+- Working with smaller networks (< 5,000 nodes preferred)
 - Need hierarchical community structure
+- Want to explore multi-scale organization
 - Have computational resources (multi-core CPU, time)
-- Want method validation and comparison
-- Studying multi-scale organization
+- Interested in method comparison/validation
 
-**Keep disabled if:**
-- Working with large networks (> 10,000 nodes)
+**Alternative (use Infomap) if:**
+- Working with large networks (> 20,000 nodes)
 - Only need single-resolution partition
 - Limited computational time
-- Primary interest in fast analysis
+- Primary interest is fast analysis
+
+**For Venice:** Both methods are feasible, Girvan-Newman provides additional hierarchical insights at the cost of longer runtime.
 
 **Computational estimates for Venice:**
-- **Full 10 levels:** 30-120 minutes (depends on hardware)
-- **Single level:** 3-12 minutes
-- **Recommendation:** Run overnight or on computing cluster
-
+- **Full 15 levels:** 30-120 minutes (depends on hardware)
+- **Single level:** 2-15 minutes
+- **Recommendation:** Run on computing cluster
 ---
+
 
 ## Enabling the Algorithm
 
 To run Girvan-Newman analysis:
 
 1. **Locate the commented section** in the Python script
-2. **Uncomment** the entire Girvan-Newman block
+2. **Uncomment** the entire Girvan-Newman block (remove ''' at the first and last).
 3. **Adjust parameters** if needed:
    ```python
-   max_levels = 10  # Reduce to 5 for faster execution
+   max_levels = 15  # Reduce to 2-5 for faster execution
    ```
 4. **Run the script** and monitor progress
 5. **Compare results** with Infomap

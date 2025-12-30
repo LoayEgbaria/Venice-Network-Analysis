@@ -53,8 +53,8 @@ if not nx.is_connected(G):
 
 
 
-'''
-# ============================== Infomap Algorithm ==============================
+
+# ============================== Infomap Algorithm START ==============================
 print("\n" + "="*60)
 print("Running Infomap Algorithm...")
 print("="*60)
@@ -696,9 +696,40 @@ stats_df.to_csv("VeniceNetworkFiles/venice_infomap_community_stats.csv", index=F
 print("Community statistics saved to: VeniceNetworkFiles: venice_infomap_community_stats.csv")
 
 print("\nAll visualizations and analysis complete!")
+
+# ================================== Infomap Algorithm END =====================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 '''
-
-
+# ================================== Girvan-Newman Algorithm START ===================================== #
 # ========== GIRVAN-NEWMAN ALGORITHM ==========
 print("\n" + "="*60)
 print("Running Girvan-Newman Algorithm...")
@@ -1078,7 +1109,116 @@ print(f"Total nodes analyzed: {len(results_df)}")
 print(f"Best modularity: {gn_modularity:.4f}")
 print(f"Communities found: {n_communities}")
 print(f"Files saved in: VeniceNetworkFiles/ and OutputImages/")
-#====================================== Girvan-Newman Algorithm START ======================================#
+
+# ================================== Girvan-Newman Algorithm END ===================================== #
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#====================================== Girvan-Newman Algorithm START - VERSION 2 ======================================#
 
 '''
 # ========== METHOD 2: Girvan-Newman Algorithm ==========
