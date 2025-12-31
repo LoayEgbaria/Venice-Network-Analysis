@@ -1380,18 +1380,6 @@ For a walk of length L:
 - **M₂:** Standard deviation of mass distribution
 - **M_∞:** Maximum mass (most-visited node count)
 
-**Visualization:**
-```matlab
-plot(log2_segment_lengths, log2_generalized_means(:, o), ...
-    'Color', line_colors(o, :), 'LineWidth', 1.5)
-```
-
-Creates multi-line plot with one curve per q-value.
-
-********ADD EXAMPLE IMAGE HERE**********
-
-
-*Figure 9: Segment mass scaling curves for all q-values*
 
 **Interpretation:**
 - **Linear regions:** Power-law scaling (fractal behavior)
@@ -1451,7 +1439,7 @@ deltaDq = max(finite_order_Dqs) - min(finite_order_Dqs);
 
 ---
 
-## Visualizations (MATLAB)
+## Visualizations
 
 ### Visualization 1: Segment Mass Curves
 

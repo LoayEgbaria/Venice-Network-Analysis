@@ -271,9 +271,7 @@ if min_degree < 2
     error('Graph still contains nodes with degree < 2. Something went wrong.');
 end
 
-%% ========== INFOMAP COMMUNITY DETECTION ==========
-fprintf('\n============================================================\n');
-fprintf('INFOMAP COMMUNITY DETECTION\n');
+
 fprintf('============================================================\n');
 
 if infomap_available
