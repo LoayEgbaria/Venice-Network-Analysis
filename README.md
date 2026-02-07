@@ -1198,7 +1198,7 @@ After 2-core extraction and LCC selection, node indices change. Need to carefull
 - Sizes and modularity metrics
 
 
-![Multi-panel figure](MBRW/PlotImages/figure1_mbrw.png)
+![Multi-panel figure](MBRW/PlotImages/figure6_mbrw.png)
 
 *Figure 7: MATLAB multi-panel community detection analysis*
 
@@ -1239,7 +1239,7 @@ G_geo = subgraph(G, nodes_with_coords);
 This ensures clean visualization without missing data artifacts.
 
 
-![Geographic community map](MBRW/PlotImages/figure2_mbrw.png)
+![Geographic community map](MBRW/PlotImages/figure3_mbrw.png)
 
 *Figure 8: High-quality geographic community visualization*
 

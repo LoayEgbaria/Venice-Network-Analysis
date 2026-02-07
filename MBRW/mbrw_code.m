@@ -463,6 +463,14 @@ end
 fprintf('\nFinal result: %d communities, Modularity: %.4f\n', ...
         num_infomap_communities, infomap_modularity);
 
+%% Define consistent community colormap (GLOBAL)
+if num_infomap_communities <= 12
+    community_cmap = lines(num_infomap_communities);
+else
+    community_cmap = hsv(num_infomap_communities);
+end
+
+
 %% Visualize Communities
 fprintf('\nCreating visualizations...\n');
 
@@ -496,8 +504,14 @@ try
                 h1.NodeColor = 'flat';
             end
             
-            colormap(gca, hsv(num_infomap_communities));
-            colorbar;
+
+            colormap(gca, community_cmap);
+            cb = colorbar;
+            cb.Ticks = 1:num_infomap_communities;
+            cb.TickLabels = arrayfun(@num2str, 1:num_infomap_communities, 'UniformOutput', false);
+            cb.Label.String = 'Community ID';
+
+
             title(sprintf('Geographic View\n%d communities', num_infomap_communities), 'FontWeight', 'bold');
             xlabel('Longitude');
             ylabel('Latitude');
@@ -507,8 +521,14 @@ try
             % Not enough coordinates, use force layout
             h1 = plot(G, 'Layout', 'force', 'EdgeColor', [0.7 0.7 0.7], 'EdgeAlpha', 0.3, 'MarkerSize', 6);
             h1.NodeCData = infomap_communities;
-            colormap(gca, hsv(num_infomap_communities));
-            colorbar;
+
+            colormap(gca, community_cmap);
+            cb = colorbar;
+            cb.Ticks = 1:num_infomap_communities;
+            cb.TickLabels = arrayfun(@num2str, 1:num_infomap_communities, 'UniformOutput', false);
+            cb.Label.String = 'Community ID';
+
+
             title(sprintf('Network View\n%d communities', num_infomap_communities));
             axis off;
         end
@@ -516,8 +536,14 @@ try
         % No coordinate variables found, use force layout
         h1 = plot(G, 'Layout', 'force', 'EdgeColor', [0.7 0.7 0.7], 'EdgeAlpha', 0.3, 'MarkerSize', 6);
         h1.NodeCData = infomap_communities;
-        colormap(gca, hsv(num_infomap_communities));
-        colorbar;
+
+        colormap(gca, community_cmap);
+        cb = colorbar;
+        cb.Ticks = 1:num_infomap_communities;
+        cb.TickLabels = arrayfun(@num2str, 1:num_infomap_communities, 'UniformOutput', false);
+        cb.Label.String = 'Community ID';
+
+
         title(sprintf('Network View\n%d communities', num_infomap_communities));
         axis off;
     end
@@ -525,7 +551,9 @@ catch ME
     fprintf('Subplot 1 error: %s\n', ME.message);
     % Simple fallback
     h1 = plot(G, 'NodeCData', infomap_communities);
-    colormap(gca, hsv(num_infomap_communities));
+
+    colormap(gca, community_cmap);
+
     title('Communities');
 end
 
@@ -595,40 +623,16 @@ sgtitle('Venice Network - Infomap Community Detection', 'FontSize', 16, 'FontWei
 print('venice_infomap_communities', '-dpng', '-r300');
 fprintf('Saved: venice_infomap_communities.png\n');
 
-%% Plot communities on geographic map (separate figure)
-fprintf('\nCreating geographic community visualization...\n');
+%% Plot communities on geographic map (separate figure) - WITH VENICE BACKGROUND
+fprintf('\nCreating geographic community visualization with Venice background...\n');
 
-figure('Position', [100 100 1200 900], 'Name', 'Venice Communities - Geographic View');
+figure('Position', [100 100 1400 1000], 'Name', 'Venice Communities - Geographic View', 'Color', 'white');
 
 % Map graph node indices to original node IDs and their coordinates
 if exist('x_coords', 'var') && exist('y_coords', 'var')
-    % After 2-core and LCC extraction, G has fewer nodes than G_original
-    % We need to map G's nodes back to the original coordinate arrays
-    
-    % Get which nodes from G_original are in G
-    % G is a subgraph of G_2core, which is derived from G_original
-    % The node indices in G correspond to nodes in G_original
-    
     % Create arrays to store coordinates for nodes in G
     plot_x = nan(numnodes(G), 1);
     plot_y = nan(numnodes(G), 1);
-    
-    % G_original had sequential IDs 1:node_count that map to coordinates
-    % After filtering, G has a subset of these nodes
-    % We need to figure out which original nodes are still in G
-    
-    % The safest approach: reconstruct the mapping
-    % G_original nodes are 1:node_count (sequential after remapping)
-    % x_coords and y_coords are indexed 1:node_count
-    
-    % Try to map through the processing chain
-    % This is tricky because rmnode and subgraph change indices
-    
-    % Alternative approach: use node names if available
-    % Or: extract from the 2-core process which nodes remain
-    
-    % For now, let's try a simpler approach:
-    % Check if coordinates align by comparing graph sizes
     
     if numnodes(G) <= length(x_coords)
         % Try direct mapping for nodes that have coordinates
@@ -649,64 +653,146 @@ if exist('x_coords', 'var') && exist('y_coords', 'var')
     
     if coords_available > numnodes(G) * 0.3  % If we have >30% coordinates
         
-        % Replace NaN coordinates with a default position (won't be visible)
-        % or create a subgraph with only nodes that have coordinates
-        
+        % Determine which nodes to use
         if coords_available == numnodes(G)
-            % All nodes have coordinates - perfect!
-            h = plot(G, 'XData', plot_x, 'YData', plot_y, ...
-                 'EdgeColor', [0.8 0.8 0.8], 'EdgeAlpha', 0.15, ...
-                 'MarkerSize', 8, 'LineWidth', 0.5);
-            
-            h.NodeCData = infomap_communities;
-            h.NodeColor = 'flat';
-            
+            nodes_to_plot = 1:numnodes(G);
+            plot_x_use = plot_x;
+            plot_y_use = plot_y;
+            communities_use = infomap_communities;
         else
-            % Some nodes missing coordinates - create subgraph with valid coords only
             fprintf('Creating subgraph with nodes that have coordinates...\n');
-            nodes_with_coords = find(valid_coords);
-            G_geo = subgraph(G, nodes_with_coords);
-            
-            plot_x_valid = plot_x(valid_coords);
-            plot_y_valid = plot_y(valid_coords);
-            communities_valid = infomap_communities(valid_coords);
-            
-            h = plot(G_geo, 'XData', plot_x_valid, 'YData', plot_y_valid, ...
-                 'EdgeColor', [0.8 0.8 0.8], 'EdgeAlpha', 0.15, ...
-                 'MarkerSize', 8, 'LineWidth', 0.5);
-            
-            h.NodeCData = communities_valid;
-            h.NodeColor = 'flat';
-            
-            fprintf('Geographic plot includes %d/%d nodes with valid coordinates\n', ...
-                    length(nodes_with_coords), numnodes(G));
+            nodes_to_plot = find(valid_coords);
+            plot_x_use = plot_x(valid_coords);
+            plot_y_use = plot_y(valid_coords);
+            communities_use = infomap_communities(valid_coords);
         end
         
-        % Use a nice colormap
-        colormap(hsv(num_infomap_communities));
+        % Get coordinate limits
+        xlimits = [min(plot_x_use) max(plot_x_use)];
+        ylimits = [min(plot_y_use) max(plot_y_use)];
         
-        if num_infomap_communities <= 20
-            cb = colorbar('Ticks', 1:num_infomap_communities);
-            cb.Label.String = 'Community';
-            cb.Label.FontSize = 12;
-        else
-            colorbar;
+        % Create axes
+        ax = gca;
+        hold on;
+        
+        % ===== STEP 1: Draw Venice street network as BLACK background =====
+        fprintf('Drawing Venice street network background...\n');
+        edge_table = G.Edges;
+        edges_drawn = 0;
+        
+        for i = 1:height(edge_table)
+            source = edge_table.EndNodes(i, 1);
+            target = edge_table.EndNodes(i, 2);
+            
+            % Check if both nodes have coordinates
+            if source <= length(plot_x) && target <= length(plot_x) && ...
+               ~isnan(plot_x(source)) && ~isnan(plot_y(source)) && ...
+               ~isnan(plot_x(target)) && ~isnan(plot_y(target))
+                
+                % Draw edge as black line (matching Python style)
+                plot([plot_x(source), plot_x(target)], ...
+                     [plot_y(source), plot_y(target)], ...
+                     'Color', [0 0 0 0.5], 'LineWidth', 0.5);
+                edges_drawn = edges_drawn + 1;
+            end
+            
+            % Progress indicator
+            if mod(i, 5000) == 0
+                fprintf('  Processed %d/%d edges (%d drawn)...\n', i, height(edge_table), edges_drawn);
+            end
         end
         
-        title(sprintf('Venice Street Network - Community Structure\n%d Communities (Infomap, Q=%.3f)', ...
-              num_infomap_communities, infomap_modularity), ...
-              'FontSize', 14, 'FontWeight', 'bold');
+        fprintf('Drew %d edges as background\n', edges_drawn);
         
-        xlabel('Longitude', 'FontSize', 11);
-        ylabel('Latitude', 'FontSize', 11);
+        % ===== STEP 2: Draw community nodes on top with colors =====
+        fprintf('Drawing community nodes...\n');
         
+
+        % Use GLOBAL consistent colormap
+        cmap = community_cmap;
+
+        
+        % Plot nodes by community
+        for comm_id = 1:num_infomap_communities
+            % Find nodes in this community
+            comm_mask = (communities_use == comm_id);
+            
+            if sum(comm_mask) > 0
+                scatter(plot_x_use(comm_mask), plot_y_use(comm_mask), ...
+                       30, 'MarkerFaceColor', community_cmap(comm_id, :), ...
+                       'MarkerEdgeColor', 'white', 'LineWidth', 0.3, ...
+                       'MarkerFaceAlpha', 0.85);
+            end
+        end
+        
+        hold off;
+        
+        % Set limits and appearance
+        xlim(xlimits);
+        ylim(ylimits);
         axis equal tight;
-        grid on;
-        box on;
         
-        % Save the geographic plot
-        print('venice_communities_geographic', '-dpng', '-r300');
-        fprintf('Saved: venice_communities_geographic.png\n');
+        % Enhanced styling
+        grid on;
+        ax.GridAlpha = 0.3;
+        ax.GridLineStyle = ':';
+        ax.Box = 'on';
+        ax.LineWidth = 1.2;
+        ax.FontSize = 10;
+        
+        % Enhanced title
+        title({sprintf('Venice Street Network - Community Structure'), ...
+               sprintf('%d Communities detected (Modularity Q = %.3f)', ...
+               num_infomap_communities, infomap_modularity)}, ...
+              'FontSize', 15, 'FontWeight', 'bold');
+        
+        % Better axis labels
+        xlabel('Longitude (degrees)', 'FontSize', 12, 'FontWeight', 'bold');
+        ylabel('Latitude (degrees)', 'FontSize', 12, 'FontWeight', 'bold');
+        
+
+        colormap(community_cmap);
+
+        if num_infomap_communities <= 20
+            % ----- FORCE COLORBAR SCALE FOR SCATTER COLORS -----
+            colormap(community_cmap);
+            % Create dummy color scale so colorbar has numeric meaning
+            caxis([0.5 num_infomap_communities + 0.5]);
+            cb = colorbar('Location', 'eastoutside');
+            cb.Ticks = 1:num_infomap_communities;
+            cb.TickLabels = arrayfun(@num2str, 1:num_infomap_communities, 'UniformOutput', false);
+            cb.TickDirection = 'out';
+            cb.Label.String = 'Community ID';
+            cb.Label.FontSize = 13;
+            cb.Label.FontWeight = 'bold';
+            cb.FontSize = 11;
+
+
+        else
+            cb = colorbar('Location', 'eastoutside');
+            cb.Label.String = 'Community ID';
+            cb.Label.FontSize = 13;
+            cb.Label.FontWeight = 'bold';
+        end
+        
+        % Add statistics text box
+        stats_str = {sprintf('Network Statistics:'), ...
+                    sprintf('Communities: %d', num_infomap_communities),...
+                    sprintf('Largest: %d nodes', max(infomap_comm_sizes)),...
+                    sprintf('Smallest: %d nodes', min(infomap_comm_sizes)),...
+                    sprintf('Mean: %.1f nodes', mean(infomap_comm_sizes))};
+        
+        annotation('textbox', [0.02 0.02 0.18 0.15], 'String', stats_str, ...
+                  'FitBoxToText', 'on', 'BackgroundColor', 'white', ...
+                  'EdgeColor', 'black', 'FontSize', 9, 'LineWidth', 1.5, ...
+                  'FontWeight', 'bold');
+        
+        % Save with high quality
+        print('venice_communities_geographic_with_background', '-dpng', '-r300');
+        fprintf('Saved: venice_communities_geographic_with_background.png\n');
+        
+        fprintf('Geographic plot includes %d/%d nodes with valid coordinates\n', ...
+                length(nodes_to_plot), numnodes(G));
         
     else
         fprintf('Warning: Only found coordinates for %d/%d nodes (%.1f%%)\n', ...
@@ -716,7 +802,6 @@ if exist('x_coords', 'var') && exist('y_coords', 'var')
 else
     fprintf('Warning: Coordinate data not available for geographic plot\n');
 end
-
 %% Save results
 results_table = table((1:numnodes(G))', infomap_communities, ...
                       'VariableNames', {'NodeID', 'Community'});
