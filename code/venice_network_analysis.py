@@ -3,7 +3,8 @@ import pandas as pd
 import osmnx as ox
 import networkx as nx
 import numpy as np
-from scipy.spatial import cKDTree
+#from scipy.spatial.distance import cKDTree
+from scipy.spatial import distance
 import infomap
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -728,7 +729,7 @@ print("\nAll visualizations and analysis complete!")
 
 
 
-'''
+
 # ================================== Girvan-Newman Algorithm START ===================================== #
 # ========== GIRVAN-NEWMAN ALGORITHM ==========
 print("\n" + "="*60)
@@ -770,6 +771,10 @@ try:
 except Exception as e:
     print(f"Stopped at level {i}: {e}")
 
+
+
+
+'''
 # Find best level by modularity
 best_level = max(gn_communities_levels, key=lambda x: x['modularity'])
 gn_comm_list = best_level['communities']
@@ -785,6 +790,46 @@ print(f"{'='*60}")
 # Community sizes
 sizes = [len(comm) for comm in gn_comm_list]
 print(f"\nCommunity sizes (top 10): {sorted(sizes, reverse=True)[:10]}")
+'''
+
+
+# Find the level with exactly 6 communities
+six_comm_levels = [x for x in gn_communities_levels if x['num_communities'] == 6]
+if not six_comm_levels:
+    raise RuntimeError("No level with exactly 6 communities was found within the tested range.")
+six_level = six_comm_levels[0]
+
+gn_comm_list = six_level['communities']
+gn_modularity = six_level['modularity']
+
+print(f"\n{'='*60}")
+print(f"SELECTED RESULT:")
+print(f"  Level: {six_level['level']}")
+print(f"  Communities: {six_level['num_communities']}")
+print(f"  Modularity: {gn_modularity:.4f}")
+print(f"{'='*60}")
+
+# Community sizes
+sizes = [len(comm) for comm in gn_comm_list]
+print(f"\nCommunity sizes (top 10): {sorted(sizes, reverse=True)[:10]}")
+
+# Best modularity level — reporting
+best_level = max(gn_communities_levels, key=lambda x: x['modularity'])
+print(f"\nLevel {best_level['level']} is the best modularity with {best_level['modularity']:.2f} modularity")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ========== VISUALIZATION SETUP ==========
 print("\n" + "="*60)
@@ -849,10 +894,21 @@ for comm_idx, comm in enumerate(gn_comm_list):
     color = community_color_map.get(comm_idx, (0.5, 0.5, 0.5, 1.0))
     ax.scatter(xs, ys, s=18, color=[color], alpha=0.85)
 
+
+
+
 # Decorations
+#ax.set_title(f'Girvan-Newman Communities - Venice Network\n'
+#             f'{n_communities} communities (Level {best_level["level"]}), Modularity: {gn_modularity:.3f}',
+#             fontsize=14, fontweight='bold')
+
 ax.set_title(f'Girvan-Newman Communities - Venice Network\n'
-             f'{n_communities} communities (Level {best_level["level"]}), Modularity: {gn_modularity:.3f}',
+             f'{n_communities} communities, Modularity: {gn_modularity:.3f}',
              fontsize=14, fontweight='bold')
+
+
+
+
 ax.set_xlabel('Longitude')
 ax.set_ylabel('Latitude')
 ax.set_aspect('equal')
@@ -861,7 +917,7 @@ ax.set_aspect('equal')
 explanation = (
     f"• Girvan-Newman hierarchical algorithm\n"
     f"• Modularity score: {gn_modularity:.3f}\n"
-    f"• Best result from {len(gn_communities_levels)} levels tested"
+    f"• Each color represents a community\n"
 )
 ax.text(0.02, 0.98, explanation, transform=ax.transAxes,
         fontsize=8, verticalalignment='top',
@@ -1111,7 +1167,7 @@ print(f"Communities found: {n_communities}")
 print(f"Files saved in: VeniceNetworkFiles/ and OutputImages/")
 
 # ================================== Girvan-Newman Algorithm END ===================================== #
-'''
+
 
 
 
