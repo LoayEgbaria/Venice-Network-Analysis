@@ -63,6 +63,8 @@ print("="*60)
 try:
     
     # Create Infomap instance
+    #markov-time UP = Less Communities, markov-time DOWN = More Communities
+    
     #im = infomap.Infomap("--two-level --markov-time 150.0")
     #im = infomap.Infomap("--two-level --markov-time 195.0 --seed 42")
     # This automatically runs 10 times and picks best result
@@ -70,8 +72,12 @@ try:
     
     #im = infomap.Infomap("--two-level --markov-time 50.0 --num-trials 10")
     
-    im = infomap.Infomap("--two-level --markov-time 48.0 --seed 42")
+    im = infomap.Infomap("--two-level --markov-time 48.8 --seed 42")
     
+    #im = infomap.Infomap("--two-level --markov-time 48.0 --seed 42 --num-threads 1")
+    
+    #im = infomap.Infomap("--two-level --markov-time 18.0 --seed 42")
+    #im = infomap.Infomap("--two-level --markov-time 22.1 --seed 42")
     #im = infomap.Infomap("--two-level --markov-time 45.0")
     
     
